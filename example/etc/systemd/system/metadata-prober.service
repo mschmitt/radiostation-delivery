@@ -1,0 +1,11 @@
+[Unit]
+Description=Metadata prober for Icecast
+
+[Service]
+ExecStart=/path/to/metadata-prober -u 'http://[::1]:8000/xxx.ogg' -m /path/to/htdocs/metadata.json -r /path/to/htdocs/recent.json
+User=www-data
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

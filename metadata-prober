@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+import argparse
+import subprocess
+import json
+import os
+import time
+from icecream import ic
+
+# Autoflush all outputs https://stackoverflow.com/a/35467658
+import functools
+print = functools.partial(print, flush=True)
+
+parser = argparse.ArgumentParser(description='Periodically probe an icecast stream for our local metadata object.')
+parser.add_argument('-u', '--url', help='stream url', required=True)
+parser.add_argument('-m', '--metadata', help='Where to write the full metadata file', required=True)
+parser.add_argument('-r', '--recent', help='Where to write the recent playlist', required=True)
+args = parser.parse_args()
+
+# Wrapper for ffprobe
+def ffprobe_json():
+	try:
+		out = subprocess.check_output(['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', args.url], text=True)
+	except subprocess.CalledProcessError as e:
+		print("Unclean exit from ffprobe; returning empty object.")
+		print(e)
+		return '{}'
+	return(out)
+
+# Drill down to our metadata object in metadata returned by ffprobe
+def comment_json(outer_json):
+	try:
+		return json.loads(outer_json['streams'][0]['tags']['comment'])
+	except Exception as e:
+		print("ffprobe_json doesn't check out; returning empty object.")
+		print(outer_json)
+		return '{}'
+
+logged_metadata = {}
+while True:
+	time.sleep(10)
+	# Probe metadata from Stream
+	outer_json = json.loads(ffprobe_json())
+	inner_json = comment_json(outer_json)
+	# Update metadata file on disk
+	try:
+		with open(args.metadata, 'w') as meta_fh:
+			json.dump(inner_json, meta_fh, sort_keys=True, indent=2, ensure_ascii=False)
+			saved_json = json.dumps(inner_json, sort_keys=True, indent=2, ensure_ascii=False)
+	except Exception as e:
+		print(f"Couldn't overwrite {args.metadata}:")
+		print(e)
+		continue
+	# Update the list of recently played titles
+	try:
+		with open(args.recent, 'r') as recent_fh:
+			recent = json.load(recent_fh)
+	except Exception as e:
+		print("Couldn't load recently played tracks, starting with empty list.")
+		print(e)
+		recent = list();
+	if inner_json != logged_metadata:
+		recent.append({'seen': {'timestamp': int(time.time()), 'localtime': time.ctime()}, 'metadata': inner_json})
+	# Discard all but 100 newest elements
+	recent = recent[-100:]
+	try:
+		with open(args.recent, 'w') as recent_fh:
+			json.dump(recent, recent_fh, sort_keys=True, indent=2, ensure_ascii=False)
+		logged_metadata = inner_json
+	except Exception as e:
+		print("Couldn't save recently played tracks, ignoring error.")
+		print(e)
+		continue
