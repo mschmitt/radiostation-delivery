@@ -56,7 +56,7 @@ def write_json_onchange(filename, data):
 
 logged_metadata = {}
 while True:
-	time.sleep(1)
+	time.sleep(10)
 	# Probe metadata from Stream
 	outer_json = json.loads(ffprobe_json())
 	inner_json = comment_json(outer_json)
