@@ -60,8 +60,8 @@ while True:
 		recent = list();
 	if inner_json != logged_metadata:
 		recent.append({'seen': {'timestamp': int(time.time()), 'localtime': time.ctime()}, 'metadata': inner_json})
-	# Discard all but 100 newest elements
-	recent = recent[-100:]
+	# Discard all but 10 newest elements
+	recent = recent[-10:]
 	try:
 		with open(args.recent, 'w') as recent_fh:
 			json.dump(recent, recent_fh, sort_keys=True, indent=2, ensure_ascii=False)
