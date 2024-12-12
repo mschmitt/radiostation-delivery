@@ -35,17 +35,35 @@ def comment_json(outer_json):
 		print(outer_json)
 		return '{}'
 
+# Wrapper for writing to disk only if data has changed
+def write_json_onchange(filename, data):
+	todisk = json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False)
+	try:
+		with open(filename, 'r') as fh:
+			ondisk = fh.read();
+	except Exception as e:
+		print(f"Couldn't read from {filename}: {e}")
+		return 0
+	if (todisk == ondisk):
+		return 1
+	try:
+		with open(filename, 'w') as fh:
+			fh.write(todisk);
+	except Exception as e:
+		print(f"Couldn't write to {filename}: {e}")
+		return 0
+	return 1
+
 logged_metadata = {}
 while True:
-	time.sleep(10)
+	time.sleep(1)
 	# Probe metadata from Stream
 	outer_json = json.loads(ffprobe_json())
 	inner_json = comment_json(outer_json)
 	# Update metadata file on disk
 	try:
-		with open(args.metadata, 'w') as meta_fh:
-			json.dump(inner_json, meta_fh, sort_keys=True, indent=2, ensure_ascii=False)
-			saved_json = json.dumps(inner_json, sort_keys=True, indent=2, ensure_ascii=False)
+		write_json_onchange(args.metadata, inner_json)
+		saved_json = json.dumps(inner_json, sort_keys=True, indent=2, ensure_ascii=False)
 	except Exception as e:
 		print(f"Couldn't overwrite {args.metadata}:")
 		print(e)
@@ -63,8 +81,7 @@ while True:
 	# Discard all but 10 newest elements
 	recent = recent[-10:]
 	try:
-		with open(args.recent, 'w') as recent_fh:
-			json.dump(recent, recent_fh, sort_keys=True, indent=2, ensure_ascii=False)
+		write_json_onchange(args.recent, recent)
 		logged_metadata = inner_json
 	except Exception as e:
 		print("Couldn't save recently played tracks, ignoring error.")
