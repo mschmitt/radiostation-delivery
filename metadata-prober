@@ -42,8 +42,8 @@ def write_json_onchange(filename, data):
 		with open(filename, 'r') as fh:
 			ondisk = fh.read();
 	except Exception as e:
-		print(f"Couldn't read from {filename}: {e}")
-		return 0
+		print(f"Couldn't read from {filename} (proceeding): {e}")
+		ondisk = ''
 	if (todisk == ondisk):
 		return 1
 	try:
