@@ -21,9 +21,9 @@ def ffprobe_json():
 	try:
 		out = subprocess.check_output(['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', args.url], text=True)
 	except subprocess.CalledProcessError as e:
-		print("Unclean exit from ffprobe; returning empty object.")
+		print("Unclean exit from ffprobe.")
 		print(e)
-		return '{}'
+		raise Exception("Unclean exit from ffprobe")
 	return(out)
 
 # Drill down to our metadata object in metadata returned by ffprobe
@@ -31,9 +31,9 @@ def comment_json(outer_json):
 	try:
 		return json.loads(outer_json['streams'][0]['tags']['comment'])
 	except Exception as e:
-		print("ffprobe_json doesn't check out; returning empty object.")
-		print(outer_json)
-		return '{}'
+		print("malformed data, can't extract comment")
+		print(e)
+		raise Exception("malformed data, can't extract comment")
 
 # Wrapper for writing to disk only if data has changed
 def write_json_onchange(filename, data):
@@ -58,8 +58,11 @@ logged_metadata = {}
 while True:
 	time.sleep(10)
 	# Probe metadata from Stream
-	outer_json = json.loads(ffprobe_json())
-	inner_json = comment_json(outer_json)
+	try:
+		outer_json = json.loads(ffprobe_json())
+		inner_json = comment_json(outer_json)
+	except:
+		continue
 	# Update metadata file on disk
 	try:
 		write_json_onchange(args.metadata, inner_json)
