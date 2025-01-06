@@ -12,8 +12,8 @@ print = functools.partial(print, flush=True)
 
 parser = argparse.ArgumentParser(description='Periodically probe an icecast stream for our local metadata object.')
 parser.add_argument('-u', '--url', help='stream url', required=True)
-parser.add_argument('-m', '--metadata', help='Where to write the full metadata file', required=True)
 parser.add_argument('-r', '--recent', help='Where to write the recent playlist', required=True)
+parser.add_argument('-l', '--logdir', help='Where to write the playlist logs', required=True)
 args = parser.parse_args()
 
 # Wrapper for ffprobe
@@ -54,7 +54,6 @@ def write_json_onchange(filename, data):
 		return 0
 	return 1
 
-logged_metadata = {}
 while True:
 	time.sleep(10)
 	# Probe metadata from Stream
@@ -62,25 +61,26 @@ while True:
 		outer_json = json.loads(ffprobe_json())
 		inner_json = comment_json(outer_json)
 	except:
-		continue
-	# Update metadata file on disk
-	try:
-		write_json_onchange(args.metadata, inner_json)
-		saved_json = json.dumps(inner_json, sort_keys=True, indent=2, ensure_ascii=False)
-	except Exception as e:
-		print(f"Couldn't overwrite {args.metadata}:")
-		print(e)
+		print("Ignoring error from ffprobe or ffprobe output")
 		continue
 	# Update the list of recently played titles
 	try:
 		with open(args.recent, 'r') as recent_fh:
 			recent = json.load(recent_fh)
+			logged_metadata = recent[-1]['metadata']
 	except Exception as e:
 		print("Couldn't load recently played tracks, starting with empty list.")
 		print(e)
+		logged_metadata = {}
 		recent = list();
 	if inner_json != logged_metadata:
 		recent.append({'seen': {'timestamp': int(time.time()), 'localtime': time.ctime()}, 'metadata': inner_json})
+		try:
+			with open(f"{args.logdir}/playlist.{time.strftime('%Y-%m')}.txt", "a") as log_fh:
+				log_fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} artist='{inner_json['artist']}', title='{inner_json['title']}', filename='{inner_json['filename']}'\n")
+		except Exception as e:
+			print("Couldn't append to playlist log, ignoring error.")
+			print(e)
 	# Discard all but 10 newest elements
 	recent = recent[-10:]
 	try:
@@ -89,4 +89,3 @@ while True:
 	except Exception as e:
 		print("Couldn't save recently played tracks, ignoring error.")
 		print(e)
-		continue
