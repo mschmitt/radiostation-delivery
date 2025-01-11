@@ -77,7 +77,7 @@ while True:
 		recent.append({'seen': {'timestamp': int(time.time()), 'localtime': time.ctime()}, 'metadata': inner_json})
 		try:
 			with open(f"{args.logdir}/playlist.{time.strftime('%Y-%m')}.txt", "a") as log_fh:
-				log_fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} artist='{inner_json['artist']}', title='{inner_json['title']}', filename='{inner_json['filename']}', license='{inner_json['local_license_tag']}'\n")
+				log_fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S %Z')} artist='{inner_json['artist']}', title='{inner_json['title']}', filename='{inner_json['filename']}', license='{inner_json['local_license_tag']}'\n")
 		except Exception as e:
 			print("Couldn't append to playlist log, ignoring error.")
 			print(e)
